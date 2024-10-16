@@ -1,7 +1,7 @@
 '''
 Author: galeliu
 Date: 2024-10-15 12:01:17
-LastEditTime: 2024-10-15 18:24:11
+LastEditTime: 2024-10-16 12:02:43
 LastEditors: galeliu
 Description: .
 '''
@@ -18,7 +18,10 @@ class Node:
         self.peers = set()
 
     async def send_message(self, websocket, message):
-        await websocket.send(json.dumps(message))
+        if websocket.open:
+            await websocket.send(json.dumps(message))
+        else:
+            print('websocket已关闭')
 
     async def handle_message(self, websocket, path):
         async for message in websocket:
@@ -28,6 +31,9 @@ class Node:
             elif data['type'] == 'new_transaction':
                 self.handle_new_transaction(data['transaction_data'])
             elif data['type'] == 'request_chain':
+                print('收到请求链的请求')
+                print(websocket)
+                print(path)
                 await self.send_chain(websocket)
             elif data['type'] == 'send_chain':
                 self.handle_chain(data['chain'])
@@ -51,6 +57,8 @@ class Node:
             'type': 'send_chain',
             'chain': [block.to_dict() for block in self.blockchain.chain]
         }
+        print('-----发送链给节点-----')
+        print(message)
         await self.send_message(websocket, message)
 
     def handle_chain(self, chain_data):
@@ -75,6 +83,7 @@ class Node:
         }
         print('-----全网广播消息开始-----')
         for peer in self.peers:
+            print(peer)
             async with websockets.connect(peer) as websocket:
                 await self.send_message(websocket, message)
         print('-----全网广播消息结束-----')

@@ -1,7 +1,7 @@
 '''
 Author: galeliu
 Date: 2024-10-14 17:41:00
-LastEditTime: 2024-10-15 18:05:52
+LastEditTime: 2024-10-16 12:01:20
 LastEditors: galeliu
 Description: .
 '''
@@ -73,29 +73,35 @@ def connect_node():
     values = request.get_json()
     peer = values.get('peer')
     if not peer:
-        return '无效节点地址', 400
+        return 'invalid peer', 400
     print('请求连接节点地址：', peer)
     asyncio.run(node.connect_to_peer(peer))
     response = {
-        'message': '节点连接成功',
+        'message': 'node connected',
     }
     return jsonify(response), 200
 
 
-# 启动websocket服务
+async def start_websocket(host, port):
+    start_server = websockets.serve(node.handle_message, host, port)
+    await start_server
+
+
+# # 启动websocket服务
 def start_p2p_server(host, port):
-    '''用于节点间p2p通信，允许区块链节点互相连接'''
-    loop = asyncio.new_event_loop()  # 创建新的事件循环
-    asyncio.set_event_loop(loop)     # 将其设置为当前线程的事件循环
-    loop.run_until_complete(websockets.serve(node.handle_message, host, port))
-    print('P2P服务已启动，监听端口{}'.format(port))
+    asyncio.set_event_loop(asyncio.new_event_loop())  # 创建新的事件循环
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(start_websocket(host, port))
+    loop.run_forever()
 
 
 if __name__ == '__main__':
-    # thread = Thread(target=start_p2p_server, args=('0.0.0.0', 5001))
-    # thread.start()
-    # 启动websocket服务
-    executor = ThreadPoolExecutor(max_workers=1)
-    executor.submit(start_p2p_server, '0.0.0.0', 5001)
-    # 启动Flask服务
+    thread = Thread(target=start_p2p_server, args=('0.0.0.0', 5001))
+    thread.start()
+    # # 启动websocket服务
+    # executor = ThreadPoolExecutor(max_workers=1)
+    # executor.submit(start_p2p_server, '0.0.0.0', 5001)
+    # start_p2p_server('0.0.0.0', 5001)
+    # # 启动Flask服务
+    print('启动Flask服务')
     app.run(host='0.0.0.0', port=5000)
